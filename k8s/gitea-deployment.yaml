@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gitea-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/gitea"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea
+spec:
+  ports:
+  - name: "3000"
+    port: 3000
+    targetPort: 3000
+  - name: "222"
+    port: 222
+    targetPort: 22
+  selector:
+    name: gitea
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: gitea
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        name: gitea
+    spec:
+      containers:
+      - env:
+        - name: USER_GID
+          value: "1000"
+        - name: USER_UID
+          value: "1000"
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_HOST
+          value: database:5432
+        - name: DB_NAME
+          value: gitea
+        - name: DB_USER
+          value: gitea
+        - name: DB_PASSWD
+          value: gitea
+        image: gitea/gitea:latest
+        imagePullPolicy: ""
+        name: server
+        ports:
+        - containerPort: 3000
+        - containerPort: 22
+        volumeMounts:
+        - mountPath: /data
+          name: gitea-persistent-storage
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes:
+        - name: gitea-persistent-storage
+          persistentVolumeClaim:
+            claimName: gitea-pv-claim
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    name: gitea
+  name: gitea
+spec:
+  rules:
+    - host: git.mdcnet.int
+      http:
+        paths:
+          - backend:
+              serviceName: gitea
+              servicePort: 3000
+            path: /

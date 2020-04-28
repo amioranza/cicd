@@ -1,0 +1,185 @@
+# Pre reqs de sistemas operacional
+# sudo sysctl -w vm.max_map_count=262144
+# sudo sysctl -w fs.file-max=65536
+# sudo ulimit -n 65536
+# sudo ulimit -u 4096
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sonar-extensions
+  labels:
+    storage: sonar-extensions
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/sonar-ext"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonar-extensions
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  selector:
+    matchLabels:
+      storage: sonar-extensions
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sonar-logs
+  labels:
+    storage: sonar-logs
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/sonar-logs"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonar-logs
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  selector:
+    matchLabels:
+      storage: sonar-logs
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sonar-data
+  labels:
+    storage: sonar-data
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/sonar-data"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonar-data
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  selector:
+    matchLabels:
+      storage: sonar-data
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: sonarqube
+  name: sonarqube
+spec:
+  ports:
+    - name: sonar
+      port: 80
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    app: sonarqube
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: sonarqube
+  name: sonarqube
+spec:
+  selector:
+    matchLabels:
+      app: sonarqube
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sonarqube
+    spec:
+      containers:
+        - name: sonarqube
+          securityContext:
+            runAsUser: 999
+          image: sonarqube:community
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1024Mi
+            limits:
+              cpu: 2000m
+              memory: 2048Mi
+          volumeMounts:
+          - mountPath: "/opt/sonarqube/data/"
+            name: sonar-data
+          - mountPath: "/opt/sonarqube/extensions/"
+            name: sonar-extensions
+          - mountPath: "/opt/sonarqube/logs/"
+            name: sonar-logs
+          env:
+          - name: "SONARQUBE_JDBC_USERNAME"
+            value: "sonar"
+          - name: "SONARQUBE_JDBC_URL"
+            value: "jdbc:postgresql://database/sonar"
+          - name: "SONARQUBE_JDBC_PASSWORD"
+            valueFrom:
+              secretKeyRef:
+                name: pgsql-pass
+                key: password
+          ports:
+          - containerPort: 9000
+            protocol: TCP
+      volumes:
+      - name: sonar-data
+        persistentVolumeClaim:
+          claimName: sonar-data
+      - name: sonar-extensions
+        persistentVolumeClaim:
+          claimName: sonar-extensions
+      - name: sonar-logs
+        persistentVolumeClaim:
+          claimName: sonar-logs
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    name: sonarqube
+  name: sonarqube
+spec:
+  rules:
+    - host: sonar.mdcnet.int
+      http:
+        paths:
+          - backend:
+              serviceName: sonarqube
+              servicePort: sonar
+            path: /

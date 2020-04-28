@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: drone-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/drone"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: drone-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: drone
+spec:
+  ports:
+  - name: "http"
+    port: 80
+    targetPort: 80
+  - name: "https"
+    port: 443
+    targetPort: 443
+  selector:
+    name: drone
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drone
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: drone
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        name: drone
+    spec:
+      containers:
+      - env:
+        - name: DRONE_GITEA_SERVER
+          value: http://git.mdcnet.int
+        - name: DRONE_GITEA_CLIENT_ID
+          value: "4f04e06f-b32c-4fd7-8fd0-e8664123f062"
+        - name: DRONE_GITEA_CLIENT_SECRET
+          value: "AoFqQJO2aQInC7f8e1u_Mj3Umx7u8w06WZUrV_KKsBA="
+        - name: DRONE_RPC_SECRET
+          value: "3e5490b19f08c681d7407ff2f7ef3ec4"
+        - name: DRONE_SERVER_HOST
+          value: drone.mdcnet.int
+        - name: DRONE_SERVER_PROTO
+          value: http
+        image: drone/drone:1
+        imagePullPolicy: ""
+        name: drone
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+        volumeMounts:
+        - mountPath: /data
+          name: drone-persistent-storage
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes:
+        - name: drone-persistent-storage
+          persistentVolumeClaim:
+            claimName: drone-pv-claim
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    name: drone
+  name: drone
+spec:
+  rules:
+    - host: drone.mdcnet.int
+      http:
+        paths:
+          - backend:
+              serviceName: drone
+              servicePort: http
+            path: /
