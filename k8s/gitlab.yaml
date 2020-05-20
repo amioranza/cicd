@@ -71,8 +71,8 @@ metadata:
   name: gitlab
 spec:
   rules:
-    - host: gitlab.mdcnet.int
-      http:
+    -  http:
+       host: gitlab.192.168.64.3.xip.io
         paths:
           - backend:
               serviceName: gitlab
