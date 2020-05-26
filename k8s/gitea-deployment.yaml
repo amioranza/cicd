@@ -11,7 +11,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/mnt/data/gitea"
+    path: "/data/gitea"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -31,12 +31,12 @@ metadata:
   name: gitea
 spec:
   ports:
-  - name: "3000"
-    port: 3000
-    targetPort: 3000
-  - name: "222"
-    port: 222
-    targetPort: 22
+    - name: "3000"
+      port: 3000
+      targetPort: 3000
+    - name: "222"
+      port: 222
+      targetPort: 22
   selector:
     name: gitea
   type: NodePort
@@ -58,30 +58,30 @@ spec:
         name: gitea
     spec:
       containers:
-      - env:
-        - name: USER_GID
-          value: "1000"
-        - name: USER_UID
-          value: "1000"
-        - name: DB_TYPE
-          value: postgres
-        - name: DB_HOST
-          value: database:5432
-        - name: DB_NAME
-          value: gitea
-        - name: DB_USER
-          value: gitea
-        - name: DB_PASSWD
-          value: gitea
-        image: gitea/gitea:latest
-        imagePullPolicy: ""
-        name: server
-        ports:
-        - containerPort: 3000
-        - containerPort: 22
-        volumeMounts:
-        - mountPath: /data
-          name: gitea-persistent-storage
+        - env:
+            - name: USER_GID
+              value: "1000"
+            - name: USER_UID
+              value: "1000"
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_HOST
+              value: database:5432
+            - name: DB_NAME
+              value: gitea
+            - name: DB_USER
+              value: gitea
+            - name: DB_PASSWD
+              value: gitea
+          image: gitea/gitea:latest
+          imagePullPolicy: ""
+          name: server
+          ports:
+            - containerPort: 3000
+            - containerPort: 22
+          volumeMounts:
+            - mountPath: /data
+              name: gitea-persistent-storage
       restartPolicy: Always
       serviceAccountName: ""
       volumes:

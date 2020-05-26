@@ -25,7 +25,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "/mnt/data/jenkins"
+    path: "/data/jenkins"
 ---
 apiVersion: v1
 kind: Service
@@ -116,7 +116,7 @@ metadata:
   name: jenkins
 spec:
   rules:
-    - host: jenkins.192.168.64.3.xip.io
+    - host: jenkins.mdcnet.int
       http:
         paths:
           - backend:
